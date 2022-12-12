@@ -15,7 +15,7 @@ def validate_params(params, estimator, x_train, y_train, x_val, y_val):
 
     return params, rmse
 
-def validate_dsnaw_params(params, df, pred_results, val_index, test_index):
+def validate_ds_params(params, df, pred_results, val_index, test_index, method="dsnaw", euclidians=None):
     k = params['k']
     n = params['n']
     comb = params['comb']   
@@ -23,7 +23,10 @@ def validate_dsnaw_params(params, df, pred_results, val_index, test_index):
     y_dsnaw = np.zeros(test_index-val_index)
     for i in range(val_index, test_index):
         rmse_roc = []
-        real_roc = df['y'].loc[i-k:i-1].values
+        if method=="dsla":
+            real_roc = df['y'].loc[euclidians[i-val_index, :k]].values
+        else:
+            real_roc = df['y'].loc[i-k:i-1].values
         for j in range(0, len(pred_results)):      
             pred_roc = pred_results[j]['y'].loc[i-k:i-1].values
             rmse_roc.append((j, np.sqrt(metrics.mean_squared_error(pred_roc, real_roc))))
@@ -39,3 +42,17 @@ def validate_dsnaw_params(params, df, pred_results, val_index, test_index):
     rmse = np.sqrt(metrics.mean_squared_error(y_dsnaw, df['y'].loc[val_index:test_index-1].values))
 
     return params, rmse
+
+def sort_euclidian_distances(test_i, df, k, lags, val_index, test_index):
+    w = df['y'].loc[test_i-lags:test_i-1].values
+    distances = []
+    if test_i < test_index:
+        idx = val_index
+    else:
+        idx = test_index
+    for i in range(lags, idx):
+        distances.append((i, np.linalg.norm(df['y'].loc[i-lags:i-1].values - w)))
+    sorted_distances = sorted(distances, key=lambda x: x[1])
+    return test_i, [s[0] for s in sorted_distances[:k]]
+        
+        
